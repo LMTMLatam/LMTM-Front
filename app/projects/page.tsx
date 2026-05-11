@@ -29,7 +29,7 @@ export default function ProjectsPage() {
       setProjects(JSON.parse(stored));
     } else {
       // Demo data
-      const demo = [
+      const demo: Project[] = [
         {
           id: "1",
           name: "Campaña Meta - Inmobiliaria Norte",

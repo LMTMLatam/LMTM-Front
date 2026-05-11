@@ -43,7 +43,7 @@ export default function GoalsPage() {
     if (stored) {
       setGoals(JSON.parse(stored));
     } else {
-      const demo = [
+      const demo: Goal[] = [
         {
           id: "1",
           title: "Lanzar dashboard para 20 clientes",
