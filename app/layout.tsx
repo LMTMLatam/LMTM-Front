@@ -1,19 +1,6 @@
 import type { Metadata } from "next";
-import { Outfit, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Sidebar from "./Sidebar";
-
-const outfit = Outfit({
-  subsets: ["latin"],
-  variable: "--font-outfit",
-  display: "swap",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "LMTM Panel - Agency OS",
@@ -26,11 +13,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${outfit.variable} ${spaceGrotesk.variable}`}>
-      <body className="font-sans antialiased">
-        <div className="flex min-h-screen bg-[#0a0a0f]">
+    <html lang="es">
+      <body>
+        <div className="flex min-h-screen" style={{ background: "#0f0d0d" }}>
           <Sidebar />
-          <main className="flex-1 overflow-auto pl-64">
+          <main
+            className="flex-1 overflow-auto"
+            style={{ marginLeft: "256px", padding: "48px" }}
+          >
             {children}
           </main>
         </div>

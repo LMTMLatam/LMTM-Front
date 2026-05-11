@@ -1,20 +1,23 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --font-outfit: "Outfit", sans-serif;
-  --font-space: "Space Grotesk", sans-serif;
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #0d0d12;
-  --bg-card: #12121a;
-  --border: rgba(255, 255, 255, 0.05);
-  --accent: #818cf8;
-  --accent-secondary: #c084fc;
+  --bg-primary: #0f0d0d;
+  --bg-secondary: #1a1716;
+  --bg-card: #242019;
+  --border: rgba(255, 255, 255, 0.08);
+  --text-primary: #faf8f5;
+  --text-secondary: rgba(250, 248, 245, 0.6);
+  --text-muted: rgba(250, 248, 245, 0.35);
+  --accent: #e85d04;
+  --accent-secondary: #dc2f02;
+  --cream: #faf8f5;
+  --burgundy: #7c1d1d;
 }
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html {
@@ -22,21 +25,20 @@ html {
 }
 
 body {
-  font-family: var(--font-outfit);
+  font-family: 'DM Sans', sans-serif;
   background: var(--bg-primary);
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
 ::selection {
-  background: rgba(129, 140, 248, 0.3);
-  color: white;
+  background: var(--accent);
+  color: var(--cream);
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -45,62 +47,42 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-input, textarea, select {
-  font-family: var(--font-outfit);
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.05em;
+  font-weight: 400;
 }
 
 .font-display {
-  font-family: var(--font-space);
+  font-family: 'Bebas Neue', sans-serif;
 }
 
-@layer utilities {
-  .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400;
-  }
-
-  .glass {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10;
-  }
-
-  .glow-indigo {
-    box-shadow: 0 0 20px rgba(129, 140, 248, 0.3), 0 0 40px rgba(129, 140, 248, 0.1);
-  }
-
-  .glow-purple {
-    box-shadow: 0 0 20px rgba(192, 132, 252, 0.3), 0 0 40px rgba(192, 132, 252, 0.1);
-  }
-}
-
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(10px); }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slide-in {
-  from { opacity: 0; transform: translateX(-20px); }
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes pulse-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .animate-fade-in {
-  animation: fade-in 0.4s ease-out forwards;
+  animation: fadeIn 0.5s ease-out forwards;
 }
 
 .animate-slide-in {
-  animation: slide-in 0.3s ease-out forwards;
+  animation: slideInLeft 0.4s ease-out forwards;
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out forwards;
 }
