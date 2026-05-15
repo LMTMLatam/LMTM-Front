@@ -1,27 +1,234 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://lmtm.onrender.com";
+const COMPANY_ID = process.env.NEXT_PUBLIC_COMPANY_ID || "e3400d17-6cdd-4d05-a3bb-49ccc38db17d";
 
-interface AskResponse {
+const TOKEN_KEY = "lmtm.token";
+const USER_KEY = "lmtm.user";
+
+export type AuthUser = { id: string; email: string; name?: string | null };
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(TOKEN_KEY);
+}
+
+export function getUser(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
+function setSession(token: string, user: AuthUser) {
+  window.localStorage.setItem(TOKEN_KEY, token);
+  window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function clearSession() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(USER_KEY);
+}
+
+async function request<T>(path: string, init: RequestInit = {}, expect: "json" | "text" = "json"): Promise<T> {
+  const token = getToken();
+  const headers = new Headers(init.headers ?? {});
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    let detail = text;
+    try {
+      const parsed = JSON.parse(text);
+      detail = parsed.error ?? parsed.message ?? text;
+    } catch {}
+    throw new Error(`${res.status} ${detail || res.statusText}`);
+  }
+  if (expect === "text") return (await res.text()) as unknown as T;
+  if (res.status === 204) return undefined as unknown as T;
+  return (await res.json()) as T;
+}
+
+export const COMPANY = { id: COMPANY_ID };
+export const API_BASE = API_URL;
+
+export async function signIn(email: string, password: string): Promise<AuthUser> {
+  const res = await fetch(`${API_URL}/api/auth/sign-in/email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Sign in failed: ${text || res.statusText}`);
+  }
+  const data = (await res.json()) as { token: string; user: AuthUser };
+  if (!data.token || !data.user) throw new Error("Sign in returned no token");
+  setSession(data.token, data.user);
+  return data.user;
+}
+
+export async function signUp(email: string, password: string, name: string): Promise<AuthUser> {
+  const res = await fetch(`${API_URL}/api/auth/sign-up/email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Sign up failed: ${text || res.statusText}`);
+  }
+  const data = (await res.json()) as { token: string; user: AuthUser };
+  setSession(data.token, data.user);
+  return data.user;
+}
+
+export async function signOut(): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/auth/sign-out`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+    });
+  } catch {}
+  clearSession();
+}
+
+// --- Health ---
+export type HealthInfo = {
+  status: string;
+  deploymentMode?: string;
+  bootstrapStatus?: string;
+  version?: string;
+};
+
+export const getHealth = () => request<HealthInfo>("/api/health");
+
+// --- Companies ---
+export type Company = { id: string; name: string; status?: string };
+export const listCompanies = () => request<Company[]>("/api/companies");
+
+// --- Projects ---
+export type Project = {
+  id: string;
+  companyId: string;
+  name: string;
+  description?: string | null;
+  status?: string;
+  color?: string | null;
+  archivedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const listProjects = () => request<Project[]>(`/api/companies/${COMPANY.id}/projects`);
+export const getProject = (id: string) => request<Project>(`/api/projects/${id}`);
+export const createProject = (body: { name: string; description?: string; status?: string }) =>
+  request<Project>(`/api/companies/${COMPANY.id}/projects`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+export const updateProject = (id: string, body: Partial<Project>) =>
+  request<Project>(`/api/projects/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+export const deleteProject = (id: string) =>
+  request<void>(`/api/projects/${id}`, { method: "DELETE" });
+
+// --- Goals ---
+export type Goal = {
+  id: string;
+  companyId: string;
+  title: string;
+  description?: string | null;
+  level: "company" | "team" | "project" | "task";
+  status: "planned" | "active" | "completed" | "cancelled";
+  ownerAgentId?: string | null;
+  parentId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const listGoals = () => request<Goal[]>(`/api/companies/${COMPANY.id}/goals`);
+export const createGoal = (body: {
+  title: string;
+  description?: string;
+  level?: Goal["level"];
+  status?: Goal["status"];
+}) =>
+  request<Goal>(`/api/companies/${COMPANY.id}/goals`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+export const updateGoal = (id: string, body: Partial<Goal>) =>
+  request<Goal>(`/api/goals/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+export const deleteGoal = (id: string) => request<void>(`/api/goals/${id}`, { method: "DELETE" });
+
+// --- Agents ---
+export type Agent = {
+  id: string;
+  companyId: string;
+  name: string;
+  role: string;
+  title?: string | null;
+  status: string;
+  adapterType: string;
+  icon?: string | null;
+  capabilities?: string | null;
+  desiredSkills?: string[];
+  createdAt: string;
+};
+
+export const listAgents = () => request<Agent[]>(`/api/companies/${COMPANY.id}/agents`);
+export const getAgent = (id: string) => request<Agent>(`/api/agents/${id}`);
+export const hireAgent = (body: {
+  name: string;
+  role?: string;
+  title?: string;
+  capabilities?: string;
+  desiredSkills?: string[];
+  adapterType: string;
+  adapterConfig?: Record<string, unknown>;
+}) =>
+  request<Agent>(`/api/companies/${COMPANY.id}/agent-hires`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+// --- Adapters ---
+export type AdapterInfo = {
+  type: string;
+  label: string;
+  modelsCount: number;
+  source: string;
+  loaded: boolean;
+  disabled: boolean;
+};
+
+export const listAdapters = () => request<AdapterInfo[]>("/api/adapters");
+
+// --- Ask (MiniMax bridge, public) ---
+export type AskResponse = {
   output?: string;
   agent?: string;
   error?: string;
-}
+  detail?: string;
+};
 
-export async function sendMessage(
-  prompt: string,
-  agent: string,
-  client?: string
-): Promise<AskResponse> {
-  const response = await fetch(`${API_URL}/ask`, {
+export async function ask(prompt: string, agent: string, client?: string): Promise<AskResponse> {
+  const res = await fetch(`${API_URL}/ask`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, agent, client }),
   });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+  if (!res.ok) {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { error: text || res.statusText };
+    }
   }
-
-  return response.json();
+  return res.json();
 }
-
-export { API_URL };

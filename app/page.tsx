@@ -1,89 +1,65 @@
 "use client";
 
-import { Bot, CircleDot, DollarSign, Activity, Clock, TrendingUp } from "lucide-react";
-import { MetricCard } from "../components/MetricCard";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Bot, FolderKanban, Target, Activity } from "lucide-react";
+import { listProjects, listGoals, listAgents, getHealth } from "../lib/api";
+import { useSession } from "../lib/session";
 import { cn } from "../lib/utils";
 
-const metrics = [
-  { icon: Bot, value: "9", label: "Active Agents", description: "Running 24/7", to: "/chat" },
-  { icon: CircleDot, value: "24", label: "Projects", description: "3 completed this month", to: "/projects" },
-  { icon: DollarSign, value: "$12.4k", label: "Revenue MRR", description: "+18% from last month" },
-  { icon: Activity, value: "147", label: "Tasks Completed", description: "This month" },
-];
-
-const recentActivity = [
-  { id: 1, agent: "CEO Agent", action: "Generated Q2 report", time: "2 min ago", type: "report" },
-  { id: 2, agent: "Dashboard Agent", action: "Updated metrics for Hotel Plaza", time: "5 min ago", type: "update" },
-  { id: 3, agent: "Creativo Agent", action: "Created 5 copy variations", time: "12 min ago", type: "create" },
-  { id: 4, agent: "Operativo Agent", action: "Checked 8 deadlines", time: "18 min ago", type: "check" },
-  { id: 5, agent: "Feedback Agent", action: "Processed 3 client feedbacks", time: "25 min ago", type: "process" },
-];
-
 export default function Dashboard() {
+  const { user, loading } = useSession();
+  const [counts, setCounts] = useState({ projects: 0, goals: 0, agents: 0 });
+  const [health, setHealth] = useState<string>("...");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (loading || !user) return;
+    Promise.all([listProjects(), listGoals(), listAgents(), getHealth()])
+      .then(([p, g, a, h]) => {
+        setCounts({ projects: p.length, goals: g.length, agents: a.length });
+        setHealth(h.status);
+      })
+      .catch(() => setHealth("error"))
+      .finally(() => setLoaded(true));
+  }, [loading, user]);
+
+  if (loading || !user) return null;
+
   return (
     <div className="h-full overflow-y-auto scrollbar-auto-hide">
       <div className="max-w-5xl mx-auto p-6 space-y-8">
-        {/* Header */}
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Welcome back. Here&apos;s what&apos;s happening with your agency.
+            Bienvenido {user.name ?? user.email}. Resumen de tu agencia.
           </p>
         </div>
 
-        {/* Metrics Grid */}
         <div className="grid grid-cols-4 gap-3">
-          {metrics.map((metric) => (
-            <MetricCard key={metric.label} {...metric} />
-          ))}
+          <StatCard icon={FolderKanban} label="Proyectos" value={counts.projects} href="/projects" />
+          <StatCard icon={Target} label="Goals" value={counts.goals} href="/goals" />
+          <StatCard icon={Bot} label="Agents" value={counts.agents} href="/agents" />
+          <StatCard icon={Activity} label="Backend" value={health} valueColor={health === "ok" ? "text-green-400" : "text-yellow-400"} />
         </div>
 
-        {/* Main Content Grid */}
         <div className="grid grid-cols-3 gap-6">
-          {/* Activity Feed */}
           <div className="col-span-2 space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
+            <h2 className="text-sm font-semibold">Acciones rápidas</h2>
             <div className="bg-card rounded-lg border border-border divide-y divide-border">
-              {recentActivity.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 px-4 py-3 first:rounded-t-lg last:rounded-b-lg"
-                >
-                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                    <Bot className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.agent}</p>
-                    <p className="text-xs text-muted-foreground truncate">{item.action}</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                    <Clock className="h-3 w-3" />
-                    <span>{item.time}</span>
-                  </div>
-                </div>
-              ))}
+              <QuickRow href="/projects" label="Crear proyecto" hint="Nuevo proyecto de marketing" />
+              <QuickRow href="/goals" label="Crear goal" hint="Define un objetivo SMART" />
+              <QuickRow href="/agents" label="Ver agents" hint="Equipo de agentes IA disponibles" />
+              <QuickRow href="/chat" label="Hablar con un agent" hint="Chat 1:1 con uno de los agentes" />
             </div>
           </div>
-
-          {/* Quick Actions */}
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Quick Actions</h2>
-            <div className="bg-card rounded-lg border border-border p-4 space-y-2">
-              <QuickAction href="/chat" label="New Chat" description="Talk to an agent" icon={Bot} />
-              <QuickAction href="/projects" label="View Projects" description="Manage active work" icon={CircleDot} />
-              <QuickAction href="/goals" label="Track Goals" description="Check objectives" icon={TrendingUp} />
-            </div>
-
-            {/* System Status */}
-            <div className="bg-card rounded-lg border border-border p-4">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                System Status
-              </h3>
-              <div className="space-y-2">
-                <StatusRow label="Backend API" status="operational" />
-                <StatusRow label="MiniMax LLM" status="operational" />
-                <StatusRow label="Database" status="operational" />
-              </div>
+            <h2 className="text-sm font-semibold">Sistema</h2>
+            <div className="bg-card rounded-lg border border-border p-4 text-xs space-y-2">
+              <div className="flex items-center justify-between"><span className="text-muted-foreground">Backend</span><span className={cn(health === "ok" ? "text-green-400" : "text-yellow-400")}>{health}</span></div>
+              <div className="flex items-center justify-between"><span className="text-muted-foreground">LLM</span><span className="text-green-400">MiniMax M2</span></div>
+              <div className="flex items-center justify-between"><span className="text-muted-foreground">Adapter</span><span className="text-green-400">minimax_cloud</span></div>
+              {loaded ? null : <p className="text-muted-foreground">Cargando datos…</p>}
             </div>
           </div>
         </div>
@@ -92,47 +68,27 @@ export default function Dashboard() {
   );
 }
 
-function QuickAction({
-  href,
-  label,
-  description,
-  icon: Icon,
-}: {
-  href: string;
-  label: string;
-  description: string;
-  icon: React.ElementType;
-}) {
-  return (
-    <a
-      href={href}
-      className="flex items-center gap-3 p-3 rounded-md border border-border hover:bg-accent/50 transition-colors group"
-    >
-      <div className="w-9 h-9 rounded-md bg-secondary flex items-center justify-center shrink-0 group-hover:bg-accent transition-colors">
+function StatCard({ icon: Icon, label, value, href, valueColor }: { icon: React.ElementType; label: string; value: number | string; href?: string; valueColor?: string }) {
+  const inner = (
+    <div className="bg-card rounded-lg border border-border p-4 hover:bg-accent/50 transition-colors">
+      <div className="flex items-center justify-between mb-2">
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-    </a>
+      <p className={cn("text-2xl font-semibold", valueColor)}>{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
   );
+  return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
-function StatusRow({ label, status }: { label: string; status: "operational" | "degraded" | "down" }) {
-  const colors = {
-    operational: "bg-green-500",
-    degraded: "bg-yellow-500",
-    down: "bg-red-500",
-  };
-
+function QuickRow({ href, label, hint }: { href: string; label: string; hint: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-1.5">
-        <span className={cn("h-1.5 w-1.5 rounded-full", colors[status])} />
-        <span className="text-xs capitalize text-muted-foreground">{status}</span>
+    <Link href={href} className="flex items-center justify-between px-4 py-3 hover:bg-accent/50 transition-colors first:rounded-t-lg last:rounded-b-lg">
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{hint}</p>
       </div>
-    </div>
+      <span className="text-muted-foreground">→</span>
+    </Link>
   );
 }
