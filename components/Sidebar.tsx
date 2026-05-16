@@ -10,6 +10,7 @@ import {
   FolderKanban,
   Target,
   Bot,
+  BarChart3,
   LogOut,
   Circle,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/projects", icon: FolderKanban, label: "Projects" },
   { href: "/goals", icon: Target, label: "Goals" },
   { href: "/agents", icon: Bot, label: "Agents" },
+  { href: "/dashboards", icon: BarChart3, label: "Dashboards" },
   { href: "/chat", icon: MessageSquare, label: "Chat" },
 ];
 

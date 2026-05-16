@@ -208,6 +208,26 @@ export type AdapterInfo = {
 
 export const listAdapters = () => request<AdapterInfo[]>("/api/adapters");
 
+// --- Dashboards (deploy to Vercel) ---
+export type DeployResponse = {
+  id: string;
+  projectName: string;
+  target: "preview" | "production";
+  url: string;
+  readyState: string;
+};
+
+export const deployDashboard = (body: {
+  name: string;
+  html?: string;
+  files?: Array<{ file: string; data: string; encoding?: "utf-8" | "base64" }>;
+  target?: "preview" | "production";
+}) =>
+  request<DeployResponse>("/api/dashboards/deploy", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
 // --- Ask (MiniMax bridge, public) ---
 export type AskResponse = {
   output?: string;
