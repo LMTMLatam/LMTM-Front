@@ -11,6 +11,7 @@ import {
   Target,
   Bot,
   BarChart3,
+  Plug,
   LogOut,
   Circle,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/goals", icon: Target, label: "Goals" },
   { href: "/agents", icon: Bot, label: "Agents" },
   { href: "/dashboards", icon: BarChart3, label: "Dashboards" },
+  { href: "/integrations/meta", icon: Plug, label: "Meta" },
   { href: "/chat", icon: MessageSquare, label: "Chat" },
 ];
 

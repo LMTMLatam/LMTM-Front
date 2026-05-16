@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bot, ExternalLink, Loader2, Rocket, Sparkles } from "lucide-react";
-import { ask, deployDashboard } from "../../lib/api";
+import {
+  ask,
+  deployDashboard,
+  listMetaConnections,
+  getMetaInsights,
+  type MetaConnection,
+} from "../../lib/api";
 import { useSession } from "../../lib/session";
 
 type Phase = "idle" | "generating" | "ready" | "deploying" | "deployed";
@@ -36,6 +42,36 @@ export default function DashboardsPage() {
   const [html, setHtml] = useState("");
   const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [metaConns, setMetaConns] = useState<MetaConnection[]>([]);
+  const [metaConnId, setMetaConnId] = useState<string>("");
+  const [datePreset, setDatePreset] = useState<string>("last_30d");
+
+  useEffect(() => {
+    if (!loading && user) {
+      listMetaConnections()
+        .then((rows) => setMetaConns(rows.filter((r) => r.status === "active")))
+        .catch(() => setMetaConns([]));
+    }
+  }, [loading, user]);
+
+  async function buildMetaContext(): Promise<string> {
+    if (!metaConnId) return "";
+    try {
+      const r = await getMetaInsights({ connection: metaConnId, datePreset });
+      const conn = metaConns.find((c) => c.id === metaConnId);
+      const summary = {
+        source: "meta_ads",
+        connectionLabel: conn?.label,
+        adAccount: r.adAccount,
+        datePreset,
+        rows: r.rows,
+      };
+      return `\n\nDATOS REALES (Meta Ads) — usalos como base del dashboard:\n\`\`\`json\n${JSON.stringify(summary, null, 2)}\n\`\`\``;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return `\n\nNota: No pude obtener datos de Meta (${msg}). Generá el dashboard con placeholders y mencionálo.`;
+    }
+  }
 
   async function generate() {
     if (!prompt.trim() || !name.trim()) return;
@@ -44,7 +80,8 @@ export default function DashboardsPage() {
     setDeployedUrl(null);
     setHtml("");
     try {
-      const reply = await ask(`${prompt}\n\n${SYSTEM_HINT}`, "dashboard", name);
+      const metaContext = await buildMetaContext();
+      const reply = await ask(`${prompt}${metaContext}\n\n${SYSTEM_HINT}`, "dashboard", name);
       const text = reply.output ?? reply.detail ?? reply.error ?? "";
       if (!text) throw new Error("Respuesta vacía del Dashboard Agent");
       setHtml(extractHtml(text));
@@ -95,6 +132,34 @@ export default function DashboardsPage() {
             rows={4}
             className="w-full px-3 py-2 text-sm bg-secondary border border-input rounded-md resize-none font-mono"
           />
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              value={metaConnId}
+              onChange={(e) => setMetaConnId(e.target.value)}
+              className="h-10 px-3 text-sm bg-secondary border border-input rounded-md"
+            >
+              <option value="">— Sin datos de Meta (placeholders) —</option>
+              {metaConns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                  {c.adAccountId ? ` (${c.adAccountId})` : ""}
+                </option>
+              ))}
+            </select>
+            <select
+              value={datePreset}
+              onChange={(e) => setDatePreset(e.target.value)}
+              className="h-10 px-3 text-sm bg-secondary border border-input rounded-md"
+              disabled={!metaConnId}
+            >
+              <option value="last_7d">Últimos 7 días</option>
+              <option value="last_14d">Últimos 14 días</option>
+              <option value="last_28d">Últimos 28 días</option>
+              <option value="last_30d">Últimos 30 días</option>
+              <option value="last_90d">Últimos 90 días</option>
+              <option value="this_month">Este mes</option>
+            </select>
+          </div>
           <div className="flex flex-wrap gap-2 justify-between">
             <p className="text-xs text-muted-foreground">
               Workflow: <b>Generar</b> → revisar preview → <b>Deploy</b> a Vercel.

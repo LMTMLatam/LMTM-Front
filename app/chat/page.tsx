@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Bot, Send, Clock, User } from "lucide-react";
-import { ask, listAgents } from "../../lib/api";
+import { ask, agentChat, listAgents, type AgentChatMessage } from "../../lib/api";
 import { useSession } from "../../lib/session";
 import { cn } from "../../lib/utils";
 
@@ -13,7 +13,10 @@ type Message = {
   content: string;
   agent?: string;
   at: Date;
+  deployUrl?: string;
 };
+
+const AGENTS_WITH_TOOLS = new Set(["dashboard"]);
 
 const FALLBACK_AGENTS = [
   { id: "director", name: "Director", description: "Orquestador general" },
@@ -80,13 +83,35 @@ function ChatPageInner() {
   async function send() {
     const text = input.trim();
     if (!text || sending) return;
-    setMessages((m) => [...m, { id: Date.now(), role: "user", content: text, at: new Date() }]);
+    const userMsg: Message = { id: Date.now(), role: "user", content: text, at: new Date() };
+    setMessages((m) => [...m, userMsg]);
     setInput("");
     setSending(true);
     try {
-      const reply = await ask(text, current.id, client || undefined);
-      const content = reply.output ?? reply.detail ?? reply.error ?? "Sin respuesta";
-      setMessages((m) => [...m, { id: Date.now() + 1, role: "assistant", content, agent: reply.agent ?? current.name, at: new Date() }]);
+      if (AGENTS_WITH_TOOLS.has(current.id)) {
+        const history: AgentChatMessage[] = [...messages, userMsg].map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
+        const reply = await agentChat({ agent: current.id, messages: history, client: client || undefined });
+        const deployed = reply.toolTrace.find((t) => t.name === "deploy_dashboard" && (t.result as { url?: string })?.url);
+        const deployUrl = (deployed?.result as { url?: string } | undefined)?.url;
+        setMessages((m) => [
+          ...m,
+          {
+            id: Date.now() + 1,
+            role: "assistant",
+            content: reply.output || (deployUrl ? `Listo: ${deployUrl}` : "Sin respuesta"),
+            agent: reply.agent ?? current.name,
+            at: new Date(),
+            deployUrl,
+          },
+        ]);
+      } else {
+        const reply = await ask(text, current.id, client || undefined);
+        const content = reply.output ?? reply.detail ?? reply.error ?? "Sin respuesta";
+        setMessages((m) => [...m, { id: Date.now() + 1, role: "assistant", content, agent: reply.agent ?? current.name, at: new Date() }]);
+      }
     } catch (e) {
       setMessages((m) => [...m, { id: Date.now() + 1, role: "assistant", content: `Error: ${e instanceof Error ? e.message : String(e)}`, at: new Date() }]);
     } finally {
@@ -168,6 +193,16 @@ function ChatPageInner() {
                       </span>
                     </div>
                     <p className="text-sm whitespace-pre-wrap">{m.content}</p>
+                    {m.deployUrl ? (
+                      <a
+                        href={m.deployUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-2 text-xs text-green-400 underline"
+                      >
+                        {m.deployUrl}
+                      </a>
+                    ) : null}
                   </div>
                 </div>
               ))}
