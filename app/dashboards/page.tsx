@@ -6,9 +6,9 @@ import { Bot, ExternalLink, Loader2, Rocket, Sparkles } from "lucide-react";
 import {
   ask,
   deployDashboard,
-  listMetaConnections,
+  listMetaMappings,
   getMetaInsights,
-  type MetaConnection,
+  type MetaMapping,
 } from "../../lib/api";
 import { useSession } from "../../lib/session";
 
@@ -42,26 +42,26 @@ export default function DashboardsPage() {
   const [html, setHtml] = useState("");
   const [deployedUrl, setDeployedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [metaConns, setMetaConns] = useState<MetaConnection[]>([]);
-  const [metaConnId, setMetaConnId] = useState<string>("");
+  const [mappings, setMappings] = useState<MetaMapping[]>([]);
+  const [mappingAdAccount, setMappingAdAccount] = useState<string>("");
   const [datePreset, setDatePreset] = useState<string>("last_30d");
 
   useEffect(() => {
     if (!loading && user) {
-      listMetaConnections()
-        .then((rows) => setMetaConns(rows.filter((r) => r.status === "active")))
-        .catch(() => setMetaConns([]));
+      listMetaMappings()
+        .then((rows) => setMappings(rows))
+        .catch(() => setMappings([]));
     }
   }, [loading, user]);
 
   async function buildMetaContext(): Promise<string> {
-    if (!metaConnId) return "";
+    if (!mappingAdAccount) return "";
     try {
-      const r = await getMetaInsights({ connection: metaConnId, datePreset });
-      const conn = metaConns.find((c) => c.id === metaConnId);
+      const r = await getMetaInsights({ adAccount: mappingAdAccount, datePreset });
+      const m = mappings.find((x) => x.adAccountId === mappingAdAccount);
       const summary = {
         source: "meta_ads",
-        connectionLabel: conn?.label,
+        clientLabel: m?.label,
         adAccount: r.adAccount,
         datePreset,
         rows: r.rows,
@@ -134,15 +134,14 @@ export default function DashboardsPage() {
           />
           <div className="grid grid-cols-2 gap-3">
             <select
-              value={metaConnId}
-              onChange={(e) => setMetaConnId(e.target.value)}
+              value={mappingAdAccount}
+              onChange={(e) => setMappingAdAccount(e.target.value)}
               className="h-10 px-3 text-sm bg-secondary border border-input rounded-md"
             >
               <option value="">— Sin datos de Meta (placeholders) —</option>
-              {metaConns.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                  {c.adAccountId ? ` (${c.adAccountId})` : ""}
+              {mappings.map((m) => (
+                <option key={m.id} value={m.adAccountId}>
+                  {m.label ?? m.adAccountId} ({m.adAccountId})
                 </option>
               ))}
             </select>
@@ -150,7 +149,7 @@ export default function DashboardsPage() {
               value={datePreset}
               onChange={(e) => setDatePreset(e.target.value)}
               className="h-10 px-3 text-sm bg-secondary border border-input rounded-md"
-              disabled={!metaConnId}
+              disabled={!mappingAdAccount}
             >
               <option value="last_7d">Últimos 7 días</option>
               <option value="last_14d">Últimos 14 días</option>

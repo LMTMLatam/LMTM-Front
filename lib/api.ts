@@ -247,6 +247,37 @@ export type MetaConnection = {
 export const listMetaConnections = () =>
   request<MetaConnection[]>(`/api/companies/${COMPANY.id}/meta/connections`);
 
+// All connections across companies the user can access (agency-wide).
+export type GlobalMetaConnection = MetaConnection & { companyId: string };
+export const listAllMetaConnections = () =>
+  request<GlobalMetaConnection[]>(`/api/meta/connections`);
+
+export type MetaMapping = {
+  id: string;
+  companyId: string;
+  connectionId: string;
+  adAccountId: string;
+  label: string | null;
+  connectionLabel: string | null;
+  connectionStatus: string | null;
+  createdAt: string;
+};
+
+export const listMetaMappings = (companyId?: string) =>
+  request<MetaMapping[]>(`/api/companies/${companyId ?? COMPANY.id}/meta/mappings`);
+
+export const createMetaMapping = (
+  body: { connectionId: string; adAccountId: string; label?: string },
+  companyId?: string,
+) =>
+  request<{ id: string; adAccountId: string }>(
+    `/api/companies/${companyId ?? COMPANY.id}/meta/mappings`,
+    { method: "POST", body: JSON.stringify(body) },
+  );
+
+export const deleteMetaMapping = (id: string) =>
+  request<void>(`/api/meta/mappings/${id}`, { method: "DELETE" });
+
 export const createMetaConnection = (body: {
   label: string;
   accessToken: string;
